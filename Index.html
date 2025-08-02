@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Pemutar Musik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for song list */
+        .song-list-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .song-list-container::-webkit-scrollbar-track {
+            background: #FFDDAA;
+            border-radius: 10px;
+        }
+        .song-list-container::-webkit-scrollbar-thumb {
+            background: #FF9933;
+            border-radius: 10px;
+        }
+        .song-list-container::-webkit-scrollbar-thumb:hover {
+            background: #FF8800;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-orange-400 to-orange-600 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white bg-opacity-90 backdrop-blur-lg rounded-3xl shadow-2xl p-6 md:p-8 w-full max-w-4xl flex flex-col md:flex-row gap-6 md:gap-8 transition-all duration-300 ease-in-out">
+        
+        <!-- Kolom Kiri: Pemutar Musik & Unggah -->
+        <div class="md:w-1/2 flex flex-col justify-between items-center bg-orange-100 bg-opacity-60 rounded-2xl p-6 shadow-inner transition-all duration-300 ease-in-out">
+            <h1 class="text-3xl md:text-4xl font-bold text-orange-800 mb-6 text-center">Pemutar Musik</h1>
+
+            <!-- Area Album Art -->
+            <div class="relative w-48 h-48 md:w-64 md:h-64 bg-orange-200 rounded-full flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300 ease-in-out mb-8">
+                <i class="fa-solid fa-compact-disc text-orange-400 text-6xl md:text-8xl animate-spin-slow"></i>
+                <div id="album-art" class="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center">
+                    <!-- Album art or placeholder -->
+                </div>
+            </div>
+
+            <!-- Judul Lagu & Artis -->
+            <div class="text-center mb-6">
+                <p id="current-song-title" class="text-xl md:text-2xl font-semibold text-orange-900 truncate">Pilih musik Anda</p>
+                <p id="current-song-artist" class="text-sm text-orange-700 opacity-80 mt-1">Belum ada lagu yang diputar</p>
+            </div>
+
+            <!-- Kontrol Pemutar -->
+            <div class="w-full">
+                <!-- Progress Bar -->
+                <div class="w-full h-2 bg-orange-200 rounded-full overflow-hidden mb-4">
+                    <div id="progress-bar" class="h-full bg-orange-500 transition-all duration-100 ease-linear" style="width: 0%;"></div>
+                </div>
+
+                <!-- Tombol Kontrol -->
+                <div class="flex items-center justify-center gap-4 text-orange-800 mb-6">
+                    <button id="prev-btn" class="p-3 bg-orange-300 rounded-full hover:bg-orange-400 transition-colors duration-200 ease-in-out shadow-md">
+                        <i class="fa-solid fa-backward text-sm md:text-base"></i>
+                    </button>
+                    <button id="play-pause-btn" class="w-16 h-16 bg-orange-500 text-white rounded-full flex items-center justify-center text-xl md:text-2xl shadow-xl hover:bg-orange-600 transition-colors duration-200 ease-in-out transform hover:scale-110">
+                        <i id="play-pause-icon" class="fa-solid fa-play"></i>
+                    </button>
+                    <button id="next-btn" class="p-3 bg-orange-300 rounded-full hover:bg-orange-400 transition-colors duration-200 ease-in-out shadow-md">
+                        <i class="fa-solid fa-forward text-sm md:text-base"></i>
+                    </button>
+                </div>
+                
+                <!-- Kontrol Volume -->
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-volume-low text-orange-700"></i>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1" class="w-full h-1 bg-orange-300 rounded-full accent-orange-500 cursor-pointer">
+                    <i class="fa-solid fa-volume-high text-orange-700"></i>
+                </div>
+            </div>
+            
+            <!-- Unggah Musik -->
+            <div class="w-full mt-8">
+                <label for="file-input" class="w-full text-center block bg-orange-500 text-white py-3 px-6 rounded-full text-sm md:text-base font-semibold cursor-pointer shadow-lg hover:bg-orange-600 transition-colors duration-200 ease-in-out transform hover:scale-105">
+                    <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Unggah Musik
+                </label>
+                <input type="file" id="file-input" class="hidden" accept="audio/*" multiple>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Daftar Lagu -->
+        <div class="md:w-1/2 bg-orange-100 bg-opacity-60 rounded-2xl p-6 shadow-inner flex flex-col">
+            <h2 class="text-2xl font-bold text-orange-800 mb-4">Daftar Lagu</h2>
+            <div id="song-list-container" class="flex-grow overflow-y-auto pr-2 song-list-container">
+                <ul id="song-list" class="space-y-3">
+                    <!-- Daftar lagu akan ditambahkan di sini -->
+                </ul>
+                <p id="empty-message" class="text-center text-orange-700 opacity-60 italic mt-8">Belum ada lagu yang diunggah.</p>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audio-player" class="hidden"></audio>
+
+    <script>
+        // Memastikan DOM telah dimuat sebelum menjalankan script
+        window.onload = function() {
+            // Dapatkan elemen-elemen DOM yang diperlukan
+            const audioPlayer = document.getElementById('audio-player');
+            const fileInput = document.getElementById('file-input');
+            const songList = document.getElementById('song-list');
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            const playPauseIcon = document.getElementById('play-pause-icon');
+            const nextBtn = document.getElementById('next-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            const progressBar = document.getElementById('progress-bar');
+            const volumeSlider = document.getElementById('volume-slider');
+            const currentSongTitle = document.getElementById('current-song-title');
+            const emptyMessage = document.getElementById('empty-message');
+            
+            let songs = [];
+            let currentSongIndex = -1;
+
+            // Fungsi untuk menampilkan daftar lagu
+            const renderSongList = () => {
+                songList.innerHTML = ''; // Kosongkan daftar yang ada
+                if (songs.length === 0) {
+                    emptyMessage.style.display = 'block';
+                } else {
+                    emptyMessage.style.display = 'none';
+                    songs.forEach((song, index) => {
+                        const li = document.createElement('li');
+                        li.className = `p-3 flex items-center justify-between bg-white bg-opacity-40 hover:bg-opacity-60 rounded-xl cursor-pointer shadow-sm transition-all duration-200 ease-in-out border-l-4 border-orange-400 ${index === currentSongIndex ? 'bg-orange-300 bg-opacity-80 shadow-md' : ''}`;
+                        li.innerHTML = `
+                            <div class="flex items-center gap-3 w-4/5 truncate">
+                                <i class="fa-solid fa-music text-orange-600"></i>
+                                <span class="font-medium text-orange-900 truncate">${song.file.name}</span>
+                            </div>
+                            <i class="fa-solid fa-play-circle text-orange-500 hover:text-orange-700 text-lg transition-colors duration-200 ease-in-out"></i>
+                        `;
+                        li.dataset.index = index;
+                        li.addEventListener('click', (e) => {
+                            // Cek apakah yang diklik adalah tombol play/pause di dalam daftar
+                            if (e.target.closest('li') && e.target.tagName !== 'I') {
+                                loadSong(index);
+                                playSong();
+                            }
+                        });
+                        songList.appendChild(li);
+                    });
+                }
+            };
+
+            // Fungsi untuk memuat lagu
+            const loadSong = (index) => {
+                if (index < 0 || index >= songs.length) return;
+                currentSongIndex = index;
+                audioPlayer.src = songs[index].url;
+                currentSongTitle.textContent = songs[index].file.name;
+                currentSongTitle.classList.remove('italic');
+                renderSongList();
+            };
+
+            // Fungsi untuk memutar lagu
+            const playSong = () => {
+                if (currentSongIndex === -1 && songs.length > 0) {
+                    loadSong(0);
+                }
+                if (audioPlayer.src) {
+                    audioPlayer.play();
+                    playPauseIcon.classList.remove('fa-play');
+                    playPauseIcon.classList.add('fa-pause');
+                    const listItem = songList.querySelector(`[data-index="${currentSongIndex}"]`);
+                    if (listItem) {
+                        listItem.classList.add('bg-orange-300', 'bg-opacity-80', 'shadow-md');
+                        const playIcon = listItem.querySelector('.fa-play-circle');
+                        if (playIcon) {
+                             playIcon.classList.remove('fa-play-circle');
+                             playIcon.classList.add('fa-pause-circle');
+                        }
+                    }
+                }
+            };
+
+            // Fungsi untuk menjeda lagu
+            const pauseSong = () => {
+                audioPlayer.pause();
+                playPauseIcon.classList.remove('fa-pause');
+                playPauseIcon.classList.add('fa-play');
+                const listItem = songList.querySelector(`[data-index="${currentSongIndex}"]`);
+                if (listItem) {
+                    listItem.classList.remove('bg-orange-300', 'bg-opacity-80', 'shadow-md');
+                    const pauseIcon = listItem.querySelector('.fa-pause-circle');
+                    if (pauseIcon) {
+                         pauseIcon.classList.remove('fa-pause-circle');
+                         pauseIcon.classList.add('fa-play-circle');
+                    }
+                }
+            };
+
+            // Event listener untuk unggah file
+            fileInput.addEventListener('change', (event) => {
+                const files = event.target.files;
+                if (files.length > 0) {
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        const url = URL.createObjectURL(file);
+                        songs.push({ file, url });
+                    }
+                    renderSongList();
+                    if (currentSongIndex === -1) {
+                        loadSong(0);
+                    }
+                }
+            });
+
+            // Event listener untuk tombol Play/Pause
+            playPauseBtn.addEventListener('click', () => {
+                if (audioPlayer.paused) {
+                    playSong();
+                } else {
+                    pauseSong();
+                }
+            });
+
+            // Event listener untuk tombol Next
+            nextBtn.addEventListener('click', () => {
+                if (songs.length === 0) return;
+                let nextIndex = (currentSongIndex + 1) % songs.length;
+                loadSong(nextIndex);
+                playSong();
+            });
+
+            // Event listener untuk tombol Previous
+            prevBtn.addEventListener('click', () => {
+                if (songs.length === 0) return;
+                let prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+                loadSong(prevIndex);
+                playSong();
+            });
+
+            // Event listener untuk update progress bar saat lagu diputar
+            audioPlayer.addEventListener('timeupdate', () => {
+                const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                progressBar.style.width = `${progress}%`;
+            });
+
+            // Event listener untuk melanjutkan ke lagu berikutnya saat lagu selesai
+            audioPlayer.addEventListener('ended', () => {
+                let nextIndex = (currentSongIndex + 1) % songs.length;
+                loadSong(nextIndex);
+                playSong();
+            });
+
+            // Event listener untuk kontrol volume
+            volumeSlider.addEventListener('input', (event) => {
+                audioPlayer.volume = event.target.value;
+            });
+            
+            // Set volume awal
+            audioPlayer.volume = volumeSlider.value;
+            
+            // Render list awal
+            renderSongList();
+        };
+    </script>
+</body>
+</html>
+
